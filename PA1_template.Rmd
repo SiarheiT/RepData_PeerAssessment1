@@ -5,21 +5,146 @@ output:
     keep_md: true
 ---
 
-
+ 
 ## Loading and preprocessing the data
 
+We use dplyr library for row data check after loading
+```{r results='hide', message=FALSE, warning=FALSE}
+library(dplyr)
+```
+
+After data loading we detect dirty indexing of interval values and fix it by adding new column with better index. 
+```{r}
+data <- read.csv("activity.csv", stringsAsFactors = FALSE)
+data$date <- as.POSIXct(data$date,format="%Y-%m-%d")
+summary(data)
+dim(data)
+
+by_date<-group_by(data, date)
+intervals<-aggregate(interval ~ date, data, function(x) length(unique(x)))
+summary(intervals)
+dim(intervals)
+```
+Intervals have exactly 288 unique values per day. But range of these values are misleading and needs fixing.
+```{r}
+
+# Each day includes 288 = 24*12 5 min long intervals. The problem is that numbers in the interval column have poor numeration: 2355 different values instead of 288.
+# We add new interval_id column to fix this issue
+data <- cbind(data, interval_id=rep(1:288,61))
+
+```
 
 
 ## What is mean total number of steps taken per day?
 
+To get the answer we use our data groupped bu date and summarize it by calculating sum of steps. 
+```{r}
 
+dayresults<-summarize(by_date, daily_step_sum=sum(steps, na.rm=TRUE))
+with(dayresults, hist(daily_step_sum))
+summary(dayresults)
+m<-mean(dayresults$daily_step_sum, na.rm = TRUE)
+abline(v=m, col="blue")
+
+median<-median(dayresults$daily_step_sum, na.rm = TRUE)
+#mean
+m
+#median
+median
+```
 
 ## What is the average daily activity pattern?
 
+```{r}
+by_interval_id <- group_by(data, interval_id)
 
+intervalmeans<-summarize(by_interval_id, daily_interval_means=mean(steps, na.rm=TRUE))
+summary(intervalmeans)
+with(intervalmeans, plot(x=interval_id, y=daily_interval_means, type="l"))
+title(main = "Average daily activity pattern")
+
+interval_with_max_steps <- which.max(intervalmeans$daily_interval_means)
+#number of interval_with_max_steps
+intervalmeans$interval_id[interval_with_max_steps]
+# maximum number of steps for average 5 min interval
+intervalmeans$daily_interval_means[interval_with_max_steps]
+
+```
+
+We see that people who generated the data set were quite close to 10,000 steps goal. Good job!
 
 ## Imputing missing values
 
+We apply daily activity pattern to impute missing steps values
+
+```{r}
+# investigate on NAs in steps
+
+st<-table(is.na(data$steps))
+st
+# missing values in %%
+as.numeric(st[2]/(st[1]+st[2]))
+
+na_intervals <- is.na(data$steps)
+summary(na_intervals)
+
+# iputing NA step values with average for the intervals
+
+data_imputed <- data
+
+data_imputed$steps[na_intervals] <- rep(intervalmeans$daily_interval_means, 61)[na_intervals]
+
+head(data_imputed)
+
+#double check that we did not break non-NA values
+table(data$steps==data_imputed$steps)
+
+
+by_date_imp<-group_by(data_imputed, date)
+dayresults_imp<-summarize(by_date_imp, daily_step_sum=sum(steps, na.rm=TRUE))
+with(dayresults_imp, hist(daily_step_sum))
+
+summary(dayresults_imp)
+
+m_imp <- mean(dayresults_imp$daily_step_sum, na.rm = TRUE)
+abline(v=m_imp, col="blue")
+
+median_imp <- median(dayresults_imp$daily_step_sum, na.rm = TRUE)
+#mean
+m_imp
+#median
+median_imp
+
+# previous values
+#mean
+m
+#median
+median
+
+
+```
+Imputing missed values really impacted data.  
 
 
 ## Are there differences in activity patterns between weekdays and weekends?
+```{r}
+data_imputed <- mutate(data_imputed, isweekend = weekdays(date, abbreviate =TRUE) %in% c("Sat", "Sun"))
+data_imputed$isweekend <- as.factor(data_imputed$isweekend)
+levels(data_imputed$isweekend) <- c("weekday", "weekend")
+str(data_imputed)
+
+by_date_isweekend <- group_by(data_imputed, isweekend, interval_id)
+
+intervalmeans <- summarize(by_date_isweekend, daily_interval_means=mean(steps, na.rm=TRUE))
+summary(intervalmeans)
+
+library(ggplot2)
+
+g <- ggplot(intervalmeans, aes(x = interval_id, y = daily_interval_means))
+g<-g+geom_line(colour = 'blue')+facet_grid(isweekend ~., switch = "both") +theme_bw()
+g+labs(x="Interval", y="Number of steps", title="Weekdays and weekends patterns")
+
+
+```
+
+Weekdays and weekends have different patterns for activity. For example, we see that people are  not so active in weekend mornings. They are more passive in working hours (probably because of looking into monitors instead of making steps).  
