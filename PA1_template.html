@@ -120,11 +120,25 @@ $(document).ready(function () {
 </div>
 
 
+<div id="introduction" class="section level2">
+<h2>Introduction</h2>
+<p>It is now possible to collect a large amount of data about personal movement using activity monitoring devices such as a Fitbit, Nike Fuelband, or Jawbone Up. These type of devices are part of the “quantified self” movement - a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. But these data remain under-utilized both because the raw data are hard to obtain and there is a lack of statistical methods and software for processing and interpreting the data.</p>
+<p>This assignment makes use of data from a personal activity monitoring device. This device collects data at 5 minute intervals through out the day. The data consists of two months of data from an anonymous individual collected during the months of October and November, 2012 and include the number of steps taken in 5 minute intervals each day.</p>
+<p>The data for this assignment can be downloaded from the course web site:</p>
+<p>Dataset: <a href="https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2Factivity.zip">Activity monitoring data</a> [52K]</p>
+<p>The variables included in this dataset are:</p>
+<ul>
+<li><strong>steps</strong>: Number of steps taking in a 5-minute interval (missing values are coded as NA)</li>
+<li><strong>date</strong>: The date on which the measurement was taken in YYYY-MM-DD format</li>
+<li><strong>interval</strong>: Identifier for the 5-minute interval in which measurement was taken</li>
+</ul>
+<p>The dataset is stored in a comma-separated-value (CSV) file and there are a total of 17,568 observations in this dataset.</p>
+</div>
 <div id="loading-and-preprocessing-the-data" class="section level2">
 <h2>Loading and preprocessing the data</h2>
 <p>We use dplyr library for row data check after loading</p>
 <pre class="r"><code>library(dplyr)</code></pre>
-<p>After data loading we detect dirty indexing of interval values and fix it by adding new column with better index.</p>
+<p>After data loading we detect indexing of interval values using HHMM format. Let’s check if it’s correct and has no hidden gaps. Fix it by adding new column with better index.</p>
 <pre class="r"><code>data &lt;- read.csv(&quot;activity.csv&quot;, stringsAsFactors = FALSE)
 data$date &lt;- as.POSIXct(data$date,format=&quot;%Y-%m-%d&quot;)
 summary(data)</code></pre>
@@ -150,7 +164,7 @@ summary(intervals)</code></pre>
 ##  Max.   :2012-11-30   Max.   :288</code></pre>
 <pre class="r"><code>dim(intervals)</code></pre>
 <pre><code>## [1] 61  2</code></pre>
-<p>Intervals have exactly 288 unique values per day. But range of these values are misleading and needs fixing.</p>
+<p>Intervals have exactly 288 unique values per day. But numeric range of these values may be misleading and needs fixing.</p>
 <pre class="r"><code># Each day includes 288 = 24*12 5 min long intervals. The problem is that numbers in the interval column have poor numeration: 2355 different values instead of 288.
 # We add new interval_id column to fix this issue
 data &lt;- cbind(data, interval_id=rep(1:288,61))</code></pre>
